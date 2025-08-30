@@ -51,3 +51,12 @@ Example of the accent color applied to a button:
   background: var(--color-accent);
 }
 ```
+
+## Commit–Pull–Merge linkage
+
+CM2Git links commits to their pull requests and groups them together, with merge events shown beneath each PR. Each commit is augmented with the associated pull request using the [`commits/{sha}/pulls`](https://docs.github.com/rest/commits/commits?apiVersion=2022-11-28#list-pull-requests-associated-with-a-commit) endpoint. This endpoint is currently in preview and requires the `Accept: application/vnd.github.groot-preview+json` header in addition to `Authorization`.
+
+Merge events are retrieved from the repository Events API and displayed under the corresponding pull request. The result is a timeline where a PR's commits and final merge appear together:
+
+![Example linked timeline](linked-timeline.svg)
+
