@@ -102,3 +102,41 @@ body {
   font-size: 0.875rem;
   color: var(--color-text);
 }
+
+.pr-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pr-header {
+  cursor: pointer;
+  position: relative;
+}
+
+.pr-header::after {
+  content: '\25B6';
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  transition: transform 0.2s;
+}
+
+.pr-group.open .pr-header::after {
+  transform: rotate(90deg);
+}
+
+.pr-details {
+  display: none;
+  margin-left: 1rem;
+  border-left: 2px solid var(--color-border);
+  padding-left: 1rem;
+}
+
+.pr-group.open .pr-details {
+  display: block;
+}
+
+.sub-activity {
+  margin-top: 0.5rem;
+}
