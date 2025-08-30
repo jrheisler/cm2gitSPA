@@ -122,12 +122,15 @@ document.addEventListener('DOMContentLoaded', () => {
             type: 'merge',
             id: e.id,
             title: e.payload.pull_request.title,
-            url: e.payload.pull_request.html_url,
+            url: `https://github.com/${owner}/${repo}/commit/${e.payload.pull_request.merge_commit_sha}`,
             date: e.created_at,
             author:
               e.actor?.login ||
               e.payload.pull_request.user?.login ||
               'unknown',
+            mergeCommitSha: e.payload.pull_request.merge_commit_sha,
+            prNumber: e.payload.pull_request.number,
+            prUrl: e.payload.pull_request.html_url,
           })),
       ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -173,6 +176,25 @@ document.addEventListener('DOMContentLoaded', () => {
         prLink.rel = 'noopener noreferrer';
         prLink.textContent = `PR #${activity.pr.number}`;
         item.appendChild(prLink);
+      }
+
+      if (activity.type === 'merge') {
+        if (activity.mergeCommitSha) {
+          const commitLink = document.createElement('a');
+          commitLink.href = activity.url;
+          commitLink.target = '_blank';
+          commitLink.rel = 'noopener noreferrer';
+          commitLink.textContent = activity.mergeCommitSha.slice(0, 7);
+          item.appendChild(commitLink);
+        }
+        if (activity.prNumber && activity.prUrl) {
+          const prLink = document.createElement('a');
+          prLink.href = activity.prUrl;
+          prLink.target = '_blank';
+          prLink.rel = 'noopener noreferrer';
+          prLink.textContent = `PR #${activity.prNumber}`;
+          item.appendChild(prLink);
+        }
       }
 
       item.append(author, date);
