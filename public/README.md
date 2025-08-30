@@ -40,7 +40,7 @@ The stylesheet `cm2git.css` defines `--color-accent` to control the highlight co
 }
 
 [data-theme='dark'] {
-  --color-accent: #ff6600; /* dark theme */
+  --color-accent: #7c4dff; /* dark theme */
 }
 ```
 
