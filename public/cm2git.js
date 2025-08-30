@@ -293,6 +293,12 @@ document.addEventListener('DOMContentLoaded', () => {
       { value: 'asc', label: 'Oldest First' },
     ]);
 
+    const viewSelect = createSelect([
+      { value: 'card', label: 'Card' },
+      { value: 'grid', label: 'Grid' },
+    ]);
+    viewSelect.value = localStorage.getItem('cm2git-view') || 'card';
+
     themeButton = document.createElement('button');
     themeButton.addEventListener('click', toggleTheme);
     updateTheme();
@@ -301,6 +307,8 @@ document.addEventListener('DOMContentLoaded', () => {
     button.textContent = 'Load Activity';
     const activityContainer = document.createElement('div');
     activityContainer.id = 'activity';
+    activityContainer.style.display =
+      viewSelect.value === 'grid' ? 'grid' : 'block';
 
     function applyAndRender() {
       let filtered = [...allActivities];
@@ -315,11 +323,18 @@ document.addEventListener('DOMContentLoaded', () => {
           ? new Date(a.date) - new Date(b.date)
           : new Date(b.date) - new Date(a.date)
       );
+      const view = viewSelect.value;
+      localStorage.setItem('cm2git-view', view);
+      activityContainer.style.display = view === 'grid' ? 'grid' : 'block';
       renderActivities(filtered, activityContainer);
     }
 
     filterSelect.addEventListener('change', applyAndRender);
     sortSelect.addEventListener('change', applyAndRender);
+    viewSelect.addEventListener('change', () => {
+      localStorage.setItem('cm2git-view', viewSelect.value);
+      applyAndRender();
+    });
 
     button.addEventListener('click', async () => {
       const owner = ownerInput.value.trim();
@@ -339,6 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
     app.appendChild(tokenInput);
     app.appendChild(filterSelect);
     app.appendChild(sortSelect);
+    app.appendChild(viewSelect);
     app.appendChild(themeButton);
     app.appendChild(button);
     app.appendChild(activityContainer);
