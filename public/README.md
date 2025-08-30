@@ -16,7 +16,12 @@ The page calls the GitHub REST API and requires a personal access token. A class
    python -m http.server --directory public
    ```
 3. Navigate to `http://localhost:3000/cm2git/` (adjust the port to match the server).
-4. Fill in the GitHub owner, repository name, and your personal access token, then click **Load Activity**.
+4. Fill in the GitHub owner, repository name (or pick from the dropdown of previously used repositories), and your personal access token, then click **Load Activity**.
+
+CM2Git remembers repositories you've loaded in `localStorage` and lists them in the repository dropdown.
+
+- To add a new repository, type `owner/name` and click **Load Activity**; it will be saved for next time.
+- To switch to a saved repository, open the dropdown, choose it, and click **Load Activity**.
 
 The interface lets you filter by activity type and sort by date.
 
