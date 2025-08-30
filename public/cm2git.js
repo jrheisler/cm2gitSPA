@@ -279,6 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderGridActivities(activities, container) {
     container.innerHTML = '';
     const table = document.createElement('table');
+    table.className = 'activity-grid';
 
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
@@ -454,6 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       const view = viewSelect.value;
       localStorage.setItem('cm2git-view', view);
+      activityContainer.classList.toggle('grid', view === 'grid');
       if (view === 'grid') {
         renderGridActivities(filtered, activityContainer);
       } else {
