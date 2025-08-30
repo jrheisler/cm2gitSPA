@@ -68,6 +68,28 @@ document.addEventListener('DOMContentLoaded', () => {
         eventRes.json(),
       ]);
 
+      await Promise.all(
+        commits.map(async (c) => {
+          try {
+            const res = await fetch(
+              `https://api.github.com/repos/${owner}/${repo}/commits/${c.sha}/pulls`,
+              {
+                headers: {
+                  ...headers,
+                  Accept: 'application/vnd.github.groot-preview+json',
+                },
+              }
+            );
+            const prs = await res.json();
+            if (Array.isArray(prs) && prs.length > 0) {
+              c.pr = { number: prs[0].number, url: prs[0].html_url };
+            }
+          } catch (e) {
+            // ignore
+          }
+        })
+      );
+
       const activities = [
         ...pulls.map((pr) => ({
           type: 'PR',
@@ -88,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
             c.commit.author?.name ||
             c.commit.committer?.name ||
             'unknown',
+          pr: c.pr,
         })),
         ...events
           .filter(
@@ -119,18 +142,18 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderActivities(activities, container) {
     container.innerHTML = '';
     activities.forEach((activity) => {
-      const item = document.createElement('a');
+      const item = document.createElement('div');
       item.className = 'activity-item';
-      item.href = activity.url;
-      item.target = '_blank';
-      item.rel = 'noopener noreferrer';
 
       const type = document.createElement('div');
       type.className = 'activity-type';
       type.textContent = activity.type;
 
-      const title = document.createElement('div');
+      const title = document.createElement('a');
       title.className = 'activity-title';
+      title.href = activity.url;
+      title.target = '_blank';
+      title.rel = 'noopener noreferrer';
       title.textContent = activity.title;
 
       const author = document.createElement('div');
@@ -141,7 +164,18 @@ document.addEventListener('DOMContentLoaded', () => {
       date.className = 'activity-date';
       date.textContent = new Date(activity.date).toLocaleString();
 
-      item.append(type, title, author, date);
+      item.append(type, title);
+
+      if (activity.type === 'commit' && activity.pr) {
+        const prLink = document.createElement('a');
+        prLink.href = activity.pr.url;
+        prLink.target = '_blank';
+        prLink.rel = 'noopener noreferrer';
+        prLink.textContent = `PR #${activity.pr.number}`;
+        item.appendChild(prLink);
+      }
+
+      item.append(author, date);
       container.appendChild(item);
     });
   }
