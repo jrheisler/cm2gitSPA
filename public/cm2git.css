@@ -1,7 +1,23 @@
 /* Styles for CM2Git SPA */
+:root {
+  --color-background: #fff;
+  --color-text: #555;
+  --color-border: #ddd;
+  --color-card: #fff;
+}
+
+[data-theme='dark'] {
+  --color-background: #1a1a1a;
+  --color-text: #eee;
+  --color-border: #444;
+  --color-card: #262626;
+}
+
 body {
   margin: 0;
   font-family: sans-serif;
+  background: var(--color-background);
+  color: var(--color-text);
 }
 
 #app {
@@ -27,11 +43,11 @@ body {
   flex-direction: column;
   gap: 0.25rem;
   padding: 1rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   text-decoration: none;
   color: inherit;
-  background: #fff;
+  background: var(--color-card);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
@@ -47,5 +63,5 @@ body {
 
 .activity-date {
   font-size: 0.875rem;
-  color: #555;
+  color: var(--color-text);
 }
