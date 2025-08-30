@@ -276,6 +276,136 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function renderGridActivities(activities, container) {
+    container.innerHTML = '';
+    const table = document.createElement('table');
+
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    ['Type', 'Title/PR', 'Author', 'Date'].forEach((h) => {
+      const th = document.createElement('th');
+      th.textContent = h;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    table.appendChild(tbody);
+
+    function createCell(content) {
+      const td = document.createElement('td');
+      if (content instanceof Node) {
+        td.appendChild(content);
+      } else {
+        td.textContent = content;
+      }
+      return td;
+    }
+
+    activities.forEach((activity) => {
+      if (activity.type === 'PR') {
+        const header = document.createElement('tr');
+        header.className = 'pr-header';
+        const titleLink = document.createElement('a');
+        titleLink.href = activity.url;
+        titleLink.target = '_blank';
+        titleLink.rel = 'noopener noreferrer';
+        titleLink.textContent = activity.title;
+        header.append(
+          createCell(activity.type),
+          createCell(titleLink),
+          createCell(activity.author),
+          createCell(new Date(activity.date).toLocaleString())
+        );
+        tbody.appendChild(header);
+
+        const subRows = [];
+        activity.commits.forEach((c) => {
+          const row = document.createElement('tr');
+          row.className = 'sub-activity';
+          row.style.display = 'none';
+
+          const link = document.createElement('a');
+          link.href = c.url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = c.title;
+          if (c.pr) {
+            const prLink = document.createElement('a');
+            prLink.href = c.pr.url;
+            prLink.target = '_blank';
+            prLink.rel = 'noopener noreferrer';
+            prLink.textContent = `PR #${c.pr.number}`;
+            link.appendChild(document.createTextNode(' '));
+            link.appendChild(prLink);
+          }
+          row.append(
+            createCell(c.type),
+            createCell(link),
+            createCell(c.author),
+            createCell(new Date(c.date).toLocaleString())
+          );
+          tbody.appendChild(row);
+          subRows.push(row);
+        });
+
+        if (activity.merge) {
+          const m = activity.merge;
+          const row = document.createElement('tr');
+          row.className = 'sub-activity';
+          row.style.display = 'none';
+
+          const link = document.createElement('a');
+          link.href = m.url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = m.title;
+          if (m.prNumber && m.prUrl) {
+            const prLink = document.createElement('a');
+            prLink.href = m.prUrl;
+            prLink.target = '_blank';
+            prLink.rel = 'noopener noreferrer';
+            prLink.textContent = `PR #${m.prNumber}`;
+            link.appendChild(document.createTextNode(' '));
+            link.appendChild(prLink);
+          }
+          row.append(
+            createCell(m.type),
+            createCell(link),
+            createCell(m.author),
+            createCell(new Date(m.date).toLocaleString())
+          );
+          tbody.appendChild(row);
+          subRows.push(row);
+        }
+
+        header.addEventListener('click', () => {
+          const hidden = subRows[0] && subRows[0].style.display === 'none';
+          subRows.forEach((r) => {
+            r.style.display = hidden ? '' : 'none';
+          });
+        });
+      } else {
+        const row = document.createElement('tr');
+        const link = document.createElement('a');
+        link.href = activity.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = activity.title;
+        row.append(
+          createCell(activity.type),
+          createCell(link),
+          createCell(activity.author),
+          createCell(new Date(activity.date).toLocaleString())
+        );
+        tbody.appendChild(row);
+      }
+    });
+
+    container.appendChild(table);
+  }
+
   function bootstrap() {
     const ownerInput = createInput('cm2git-owner', 'Owner');
     const repoInput = createInput('cm2git-repo', 'Repo');
@@ -307,8 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
     button.textContent = 'Load Activity';
     const activityContainer = document.createElement('div');
     activityContainer.id = 'activity';
-    activityContainer.style.display =
-      viewSelect.value === 'grid' ? 'grid' : 'block';
+    activityContainer.style.display = 'block';
 
     function applyAndRender() {
       let filtered = [...allActivities];
@@ -325,8 +454,11 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       const view = viewSelect.value;
       localStorage.setItem('cm2git-view', view);
-      activityContainer.style.display = view === 'grid' ? 'grid' : 'block';
-      renderActivities(filtered, activityContainer);
+      if (view === 'grid') {
+        renderGridActivities(filtered, activityContainer);
+      } else {
+        renderActivities(filtered, activityContainer);
+      }
     }
 
     filterSelect.addEventListener('change', applyAndRender);
