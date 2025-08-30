@@ -47,6 +47,37 @@ document.addEventListener('DOMContentLoaded', () => {
     return input;
   }
 
+  function createRepoSelect() {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Repo';
+    const listId = 'cm2git-repo-list';
+    input.setAttribute('list', listId);
+
+    const datalist = document.createElement('datalist');
+    datalist.id = listId;
+    document.body.appendChild(datalist);
+
+    function refreshOptions() {
+      const repos = JSON.parse(localStorage.getItem('cm2git-repos') || '[]');
+      datalist.innerHTML = '';
+      repos.forEach((r) => {
+        const opt = document.createElement('option');
+        opt.value = r;
+        datalist.appendChild(opt);
+      });
+    }
+
+    input.value = localStorage.getItem('cm2git-repo') || '';
+    input.addEventListener('input', () => {
+      localStorage.setItem('cm2git-repo', input.value);
+    });
+
+    refreshOptions();
+    input.refreshOptions = refreshOptions;
+    return input;
+  }
+
   async function loadActivity(owner, repo, token) {
     const headers = { Authorization: `token ${token}` };
     try {
@@ -409,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function bootstrap() {
     const ownerInput = createInput('cm2git-owner', 'Owner');
-    const repoInput = createInput('cm2git-repo', 'Repo');
+    const repoInput = createRepoSelect();
     const tokenInput = createInput('cm2git-token', 'Personal Access Token', 'password');
 
     const filterSelect = createSelect([
@@ -477,6 +508,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!owner || !repo || !token) {
         console.warn('Owner, repo, and token are required');
         return;
+      }
+      localStorage.setItem('cm2git-repo', repo);
+      const repos = JSON.parse(localStorage.getItem('cm2git-repos') || '[]');
+      if (!repos.includes(repo)) {
+        repos.push(repo);
+        localStorage.setItem('cm2git-repos', JSON.stringify(repos));
+        if (typeof repoInput.refreshOptions === 'function') {
+          repoInput.refreshOptions();
+        }
       }
       const loaded = await loadActivity(owner, repo, token);
       allActivities = groupActivities(loaded);
