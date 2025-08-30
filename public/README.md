@@ -29,3 +29,25 @@ firebase deploy --only hosting
 ```
 
 Once deployed, the page will be available at `/cm2git/` under the site's domain, matching the local structure.
+
+## Accent color
+
+The stylesheet `cm2git.css` defines `--color-accent` to control the highlight color used for interactive elements such as buttons and headings. Adjust the value under `:root` for the default light theme and override it inside `[data-theme='dark']` for dark mode:
+
+```css
+:root {
+  --color-accent: #0066ff; /* light theme */
+}
+
+[data-theme='dark'] {
+  --color-accent: #ff6600; /* dark theme */
+}
+```
+
+Example of the accent color applied to a button:
+
+```css
+#app > button {
+  background: var(--color-accent);
+}
+```
