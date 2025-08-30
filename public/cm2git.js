@@ -1,6 +1,29 @@
 document.addEventListener('DOMContentLoaded', () => {
   const app = document.getElementById('app');
   let allActivities = [];
+  let theme = localStorage.getItem('cm2git-theme');
+  if (!theme) {
+    theme = window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
+    localStorage.setItem('cm2git-theme', theme);
+  }
+  let themeButton;
+
+  function updateTheme() {
+    document.body.setAttribute('data-theme', theme);
+    localStorage.setItem('cm2git-theme', theme);
+    if (themeButton) {
+      themeButton.textContent = theme === 'dark' ? 'Dark Mode' : 'Light Mode';
+    }
+  }
+
+  function toggleTheme() {
+    theme = theme === 'dark' ? 'light' : 'dark';
+    updateTheme();
+  }
+
+  updateTheme();
 
   function createSelect(options) {
     const select = document.createElement('select');
@@ -140,6 +163,10 @@ document.addEventListener('DOMContentLoaded', () => {
       { value: 'asc', label: 'Oldest First' },
     ]);
 
+    themeButton = document.createElement('button');
+    themeButton.addEventListener('click', toggleTheme);
+    updateTheme();
+
     const button = document.createElement('button');
     button.textContent = 'Load Activity';
     const activityContainer = document.createElement('div');
@@ -179,6 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
     app.appendChild(tokenInput);
     app.appendChild(filterSelect);
     app.appendChild(sortSelect);
+    app.appendChild(themeButton);
     app.appendChild(button);
     app.appendChild(activityContainer);
   }
