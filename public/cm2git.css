@@ -1,0 +1,51 @@
+/* Styles for CM2Git SPA */
+body {
+  margin: 0;
+  font-family: sans-serif;
+}
+
+#app {
+  padding: 1rem;
+}
+
+#app > select,
+#app > button,
+#app > input {
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+#activity {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.activity-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  text-decoration: none;
+  color: inherit;
+  background: #fff;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.activity-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.activity-type {
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.activity-date {
+  font-size: 0.875rem;
+  color: #555;
+}
