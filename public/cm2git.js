@@ -94,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ...pulls.map((pr) => ({
           type: 'PR',
           id: pr.id,
+          number: pr.number,
           title: pr.title,
           url: pr.html_url,
           date: pr.created_at,
@@ -142,63 +143,136 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function groupActivities(activities) {
+    const prs = new Map();
+    const others = [];
+
+    activities
+      .filter((a) => a.type === 'PR')
+      .forEach((a) => {
+        prs.set(a.number, { ...a, commits: [], merge: null });
+      });
+
+    activities.forEach((a) => {
+      if (a.type === 'commit' && a.pr) {
+        const pr = prs.get(a.pr.number);
+        if (pr) {
+          pr.commits.push(a);
+        } else {
+          others.push(a);
+        }
+      } else if (a.type === 'merge' && a.prNumber) {
+        const pr = prs.get(a.prNumber);
+        if (pr) {
+          pr.merge = a;
+        } else {
+          others.push(a);
+        }
+      } else if (a.type !== 'PR') {
+        others.push(a);
+      }
+    });
+
+    prs.forEach((pr) => {
+      const dates = [new Date(pr.date), ...pr.commits.map((c) => new Date(c.date))];
+      if (pr.merge) {
+        dates.push(new Date(pr.merge.date));
+      }
+      pr.date = new Date(Math.max(...dates.map((d) => d.getTime()))).toISOString();
+    });
+
+    return [...prs.values(), ...others];
+  }
+
+  function createActivityItem(activity, isSub = false) {
+    const item = document.createElement('div');
+    item.className = isSub ? 'activity-item sub-activity' : 'activity-item';
+
+    const type = document.createElement('div');
+    type.className = 'activity-type';
+    type.textContent = activity.type;
+
+    const title = document.createElement('a');
+    title.className = 'activity-title';
+    title.href = activity.url;
+    title.target = '_blank';
+    title.rel = 'noopener noreferrer';
+    title.textContent = activity.title;
+
+    const author = document.createElement('div');
+    author.className = 'activity-author';
+    author.textContent = activity.author;
+
+    const date = document.createElement('div');
+    date.className = 'activity-date';
+    date.textContent = new Date(activity.date).toLocaleString();
+
+    item.append(type, title);
+
+    if (activity.type === 'commit' && activity.pr && !isSub) {
+      const prLink = document.createElement('a');
+      prLink.href = activity.pr.url;
+      prLink.target = '_blank';
+      prLink.rel = 'noopener noreferrer';
+      prLink.textContent = `PR #${activity.pr.number}`;
+      item.appendChild(prLink);
+    }
+
+    if (activity.type === 'merge') {
+      if (activity.mergeCommitSha) {
+        const commitLink = document.createElement('a');
+        commitLink.href = activity.url;
+        commitLink.target = '_blank';
+        commitLink.rel = 'noopener noreferrer';
+        commitLink.textContent = activity.mergeCommitSha.slice(0, 7);
+        item.appendChild(commitLink);
+      }
+      if (activity.prNumber && activity.prUrl && !isSub) {
+        const prLink = document.createElement('a');
+        prLink.href = activity.prUrl;
+        prLink.target = '_blank';
+        prLink.rel = 'noopener noreferrer';
+        prLink.textContent = `PR #${activity.prNumber}`;
+        item.appendChild(prLink);
+      }
+    }
+
+    item.append(author, date);
+    return item;
+  }
+
   function renderActivities(activities, container) {
     container.innerHTML = '';
     activities.forEach((activity) => {
-      const item = document.createElement('div');
-      item.className = 'activity-item';
+      if (activity.type === 'PR') {
+        const group = document.createElement('div');
+        group.className = 'pr-group';
 
-      const type = document.createElement('div');
-      type.className = 'activity-type';
-      type.textContent = activity.type;
+        const header = createActivityItem(activity);
+        header.classList.add('pr-header');
+        group.appendChild(header);
 
-      const title = document.createElement('a');
-      title.className = 'activity-title';
-      title.href = activity.url;
-      title.target = '_blank';
-      title.rel = 'noopener noreferrer';
-      title.textContent = activity.title;
+        const details = document.createElement('div');
+        details.className = 'pr-details';
 
-      const author = document.createElement('div');
-      author.className = 'activity-author';
-      author.textContent = activity.author;
+        activity.commits.forEach((c) => {
+          details.appendChild(createActivityItem(c, true));
+        });
 
-      const date = document.createElement('div');
-      date.className = 'activity-date';
-      date.textContent = new Date(activity.date).toLocaleString();
-
-      item.append(type, title);
-
-      if (activity.type === 'commit' && activity.pr) {
-        const prLink = document.createElement('a');
-        prLink.href = activity.pr.url;
-        prLink.target = '_blank';
-        prLink.rel = 'noopener noreferrer';
-        prLink.textContent = `PR #${activity.pr.number}`;
-        item.appendChild(prLink);
-      }
-
-      if (activity.type === 'merge') {
-        if (activity.mergeCommitSha) {
-          const commitLink = document.createElement('a');
-          commitLink.href = activity.url;
-          commitLink.target = '_blank';
-          commitLink.rel = 'noopener noreferrer';
-          commitLink.textContent = activity.mergeCommitSha.slice(0, 7);
-          item.appendChild(commitLink);
+        if (activity.merge) {
+          details.appendChild(createActivityItem(activity.merge, true));
         }
-        if (activity.prNumber && activity.prUrl) {
-          const prLink = document.createElement('a');
-          prLink.href = activity.prUrl;
-          prLink.target = '_blank';
-          prLink.rel = 'noopener noreferrer';
-          prLink.textContent = `PR #${activity.prNumber}`;
-          item.appendChild(prLink);
-        }
-      }
 
-      item.append(author, date);
-      container.appendChild(item);
+        group.appendChild(details);
+
+        header.addEventListener('click', () => {
+          group.classList.toggle('open');
+        });
+
+        container.appendChild(group);
+      } else {
+        container.appendChild(createActivityItem(activity));
+      }
     });
   }
 
@@ -232,7 +306,9 @@ document.addEventListener('DOMContentLoaded', () => {
       let filtered = [...allActivities];
       const type = filterSelect.value;
       if (type !== 'all') {
-        filtered = filtered.filter((a) => a.type === type);
+        filtered = filtered.filter((a) =>
+          type === 'merge' ? a.merge : a.type === type
+        );
       }
       filtered.sort((a, b) =>
         sortSelect.value === 'asc'
@@ -253,7 +329,8 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('Owner, repo, and token are required');
         return;
       }
-      allActivities = await loadActivity(owner, repo, token);
+      const loaded = await loadActivity(owner, repo, token);
+      allActivities = groupActivities(loaded);
       applyAndRender();
     });
 
