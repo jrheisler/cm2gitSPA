@@ -160,6 +160,71 @@ body {
   border-color: var(--color-border);
 }
 
+#activity.kanban {
+  display: block;
+}
+
+.kanban-board {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.kanban-column {
+  flex: 1 0 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-card);
+  min-width: 220px;
+}
+
+.kanban-column-title {
+  font-weight: bold;
+  font-size: 1rem;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.kanban-column-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.kanban-pr {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kanban-pr-details {
+  display: none;
+  margin-left: 1rem;
+  border-left: 2px solid var(--color-border);
+  padding-left: 1rem;
+  gap: 0.5rem;
+  flex-direction: column;
+}
+
+.kanban-pr.open .kanban-pr-details {
+  display: flex;
+}
+
+.kanban-pr.open .pr-header::after {
+  transform: rotate(90deg);
+}
+
+.kanban-empty {
+  font-style: italic;
+  color: var(--color-text);
+}
+
 /* Table layout for activity grid */
 .activity-grid {
   width: 100%;
