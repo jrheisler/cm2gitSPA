@@ -600,8 +600,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const viewSelect = createSelect([
       { value: 'card', label: 'Card' },
       { value: 'grid', label: 'Grid' },
+      { value: 'kanban', label: 'Kanban' },
     ]);
-    viewSelect.value = localStorage.getItem('cm2git-view') || 'card';
+    const storedView = localStorage.getItem('cm2git-view');
+    if (storedView && Array.from(viewSelect.options).some((opt) => opt.value === storedView)) {
+      viewSelect.value = storedView;
+    } else {
+      viewSelect.value = 'card';
+    }
 
     themeButton = document.createElement('button');
     themeButton.addEventListener('click', toggleTheme);
@@ -613,21 +619,139 @@ document.addEventListener('DOMContentLoaded', () => {
     activityContainer.id = 'activity';
     activityContainer.style.display = 'block';
 
+    function renderKanbanActivities(activities, container, options = {}) {
+      const { filter = 'all', sort = 'desc' } = options;
+      const fallbackColumn = 'Unmapped';
+      container.innerHTML = '';
+
+      const board = document.createElement('div');
+      board.className = 'kanban-board';
+
+      const prs = activities
+        .filter((activity) => activity.type === 'PR')
+        .filter((pr) => {
+          if (filter === 'all' || filter === 'PR') {
+            return true;
+          }
+          if (filter === 'commit') {
+            return pr.commits && pr.commits.length > 0;
+          }
+          if (filter === 'merge') {
+            return Boolean(pr.merge);
+          }
+          return true;
+        })
+        .sort((a, b) =>
+          sort === 'asc'
+            ? new Date(a.date) - new Date(b.date)
+            : new Date(b.date) - new Date(a.date)
+        );
+
+      const columns = new Map();
+      prs.forEach((pr) => {
+        let columnNames = [];
+        if (typeof pr.kanbanColumn === 'string' && pr.kanbanColumn.trim()) {
+          columnNames = pr.kanbanColumn
+            .split(',')
+            .map((name) => name.trim())
+            .filter(Boolean);
+        }
+        if (columnNames.length === 0) {
+          columnNames = [fallbackColumn];
+        }
+
+        columnNames.forEach((name) => {
+          if (!columns.has(name)) {
+            columns.set(name, []);
+          }
+          columns.get(name).push(pr);
+        });
+      });
+
+      if (columns.size === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'kanban-empty';
+        empty.textContent = 'No pull requests to display.';
+        board.appendChild(empty);
+      } else {
+        columns.forEach((prsInColumn, columnName) => {
+          const column = document.createElement('div');
+          column.className = 'kanban-column';
+
+          const header = document.createElement('div');
+          header.className = 'kanban-column-title';
+          header.textContent = columnName;
+          column.appendChild(header);
+
+          const body = document.createElement('div');
+          body.className = 'kanban-column-body';
+
+          prsInColumn.forEach((pr) => {
+            const prContainer = document.createElement('div');
+            prContainer.className = 'kanban-pr';
+
+            const prHeader = createActivityItem(pr);
+            prHeader.classList.add('pr-header');
+            prContainer.appendChild(prHeader);
+
+            const prDetails = document.createElement('div');
+            prDetails.className = 'kanban-pr-details';
+
+            (Array.isArray(pr.commits) ? pr.commits : []).forEach((commit) => {
+              prDetails.appendChild(createActivityItem(commit, true));
+            });
+
+            if (pr.merge) {
+              prDetails.appendChild(createActivityItem(pr.merge, true));
+            }
+
+            if (prDetails.childNodes.length > 0) {
+              prContainer.appendChild(prDetails);
+              prHeader.addEventListener('click', () => {
+                prContainer.classList.toggle('open');
+              });
+            }
+
+            body.appendChild(prContainer);
+          });
+
+          column.appendChild(body);
+          board.appendChild(column);
+        });
+      }
+
+      container.appendChild(board);
+    }
+
     function applyAndRender() {
-      let filtered = [...allActivities];
       const type = filterSelect.value;
+      const sortOrder = sortSelect.value;
+      const view = viewSelect.value;
+      localStorage.setItem('cm2git-view', view);
+
+      if (view === 'kanban') {
+        activityContainer.classList.remove('grid');
+        activityContainer.classList.add('kanban');
+        renderKanbanActivities(allActivities, activityContainer, {
+          filter: type,
+          sort: sortOrder,
+        });
+        return;
+      }
+
+      let filtered = [...allActivities];
       if (type !== 'all') {
         filtered = filtered.filter((a) =>
           type === 'merge' ? a.merge : a.type === type
         );
       }
       filtered.sort((a, b) =>
-        sortSelect.value === 'asc'
+        sortOrder === 'asc'
           ? new Date(a.date) - new Date(b.date)
           : new Date(b.date) - new Date(a.date)
       );
-      const view = viewSelect.value;
-      localStorage.setItem('cm2git-view', view);
+
+      activityContainer.classList.remove('kanban');
       activityContainer.classList.toggle('grid', view === 'grid');
       if (view === 'grid') {
         renderGridActivities(filtered, activityContainer);
