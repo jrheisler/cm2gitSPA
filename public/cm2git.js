@@ -80,6 +80,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadActivity(owner, repo, token) {
     const headers = { Authorization: `token ${token}` };
+    const parseKanbanFieldValue = (value) => {
+      if (!value) {
+        return null;
+      }
+      switch (value.__typename) {
+        case 'ProjectV2ItemFieldSingleSelectValue':
+          return value.name || null;
+        case 'ProjectV2ItemFieldTextValue':
+          return value.text || null;
+        case 'ProjectV2ItemFieldNumberValue':
+          return typeof value.number === 'number' ? String(value.number) : null;
+        case 'ProjectV2ItemFieldIterationValue':
+          return value.iteration?.title || null;
+        default:
+          return null;
+      }
+    };
     try {
       const [pullRes, commitRes, eventRes] = await Promise.all([
         fetch(`https://api.github.com/repos/${owner}/${repo}/pulls?state=all`, {
@@ -121,6 +138,117 @@ document.addEventListener('DOMContentLoaded', () => {
         })
       );
 
+      const prNumbers = new Set();
+      pulls.forEach((pr) => {
+        if (typeof pr.number === 'number') {
+          prNumbers.add(pr.number);
+        }
+      });
+      commits.forEach((c) => {
+        if (c.pr?.number) {
+          prNumbers.add(c.pr.number);
+        }
+      });
+      events.forEach((e) => {
+        const number = e.payload?.pull_request?.number;
+        if (number) {
+          prNumbers.add(number);
+        }
+      });
+
+      const prProjectInfo = new Map();
+
+      if (prNumbers.size > 0) {
+        const prQueries = Array.from(prNumbers)
+          .map(
+            (number, index) => `pr${index}: pullRequest(number: ${number}) {
+          number
+          projectItems(first: 20) {
+            nodes {
+              project { title }
+              fieldValueByName(name: "Status") {
+                __typename
+                ... on ProjectV2ItemFieldSingleSelectValue { name }
+                ... on ProjectV2ItemFieldTextValue { text }
+                ... on ProjectV2ItemFieldNumberValue { number }
+                ... on ProjectV2ItemFieldIterationValue { iteration { title } }
+              }
+            }
+          }
+        }`
+          )
+          .join('\n');
+
+        if (prQueries) {
+          try {
+            // The GraphQL request requires a token with the "repo" scope (or appropriate
+            // repository access scope) and the "project" scope to read Projects V2 data.
+            const graphqlRes = await fetch('https://api.github.com/graphql', {
+              method: 'POST',
+              headers: {
+                ...headers,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                query: `query($owner: String!, $repo: String!) {
+          repository(owner: $owner, name: $repo) {
+            ${prQueries}
+          }
+        }`,
+                variables: { owner, repo },
+              }),
+            });
+
+            if (graphqlRes.ok) {
+              const graphqlJson = await graphqlRes.json();
+              const repoData = graphqlJson?.data?.repository;
+              if (repoData) {
+                Array.from(prNumbers).forEach((number, index) => {
+                  const prKey = `pr${index}`;
+                  const prData = repoData[prKey];
+                  if (!prData) {
+                    return;
+                  }
+                  const items = (prData.projectItems?.nodes || []).map((node) => {
+                    const status = parseKanbanFieldValue(node.fieldValueByName);
+                    return {
+                      projectTitle: node.project?.title || null,
+                      status,
+                    };
+                  });
+                  const kanbanColumn = items
+                    .map((item) => {
+                      if (!item.projectTitle && !item.status) {
+                        return null;
+                      }
+                      if (item.projectTitle && item.status) {
+                        return `${item.projectTitle}: ${item.status}`;
+                      }
+                      return item.projectTitle || item.status;
+                    })
+                    .filter(Boolean)
+                    .join(', ');
+                  prProjectInfo.set(number, {
+                    kanbanColumn: kanbanColumn || null,
+                    projectItems: items,
+                  });
+                });
+              } else if (graphqlJson?.errors) {
+                console.warn('GraphQL project data errors', graphqlJson.errors);
+              }
+            } else {
+              console.warn(
+                'Failed to load project data',
+                graphqlRes.status,
+                graphqlRes.statusText
+              );
+            }
+          } catch (err) {
+            console.warn('GraphQL project data request failed', err);
+          }
+        }
+      }
+
       const activities = [
         ...pulls.map((pr) => ({
           type: 'PR',
@@ -130,6 +258,8 @@ document.addEventListener('DOMContentLoaded', () => {
           url: pr.html_url,
           date: pr.created_at,
           author: pr.user?.login || 'unknown',
+          kanbanColumn: prProjectInfo.get(pr.number)?.kanbanColumn || null,
+          projectItems: prProjectInfo.get(pr.number)?.projectItems || [],
         })),
         ...commits.map((c) => ({
           type: 'commit',
@@ -143,6 +273,8 @@ document.addEventListener('DOMContentLoaded', () => {
             c.commit.committer?.name ||
             'unknown',
           pr: c.pr,
+          kanbanColumn:
+            (c.pr?.number && prProjectInfo.get(c.pr.number)?.kanbanColumn) || null,
         })),
         ...events
           .filter(
@@ -163,6 +295,10 @@ document.addEventListener('DOMContentLoaded', () => {
             mergeCommitSha: e.payload.pull_request.merge_commit_sha,
             prNumber: e.payload.pull_request.number,
             prUrl: e.payload.pull_request.html_url,
+            kanbanColumn:
+              (e.payload.pull_request.number &&
+                prProjectInfo.get(e.payload.pull_request.number)?.kanbanColumn) ||
+              null,
           })),
       ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -188,6 +324,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (a.type === 'commit' && a.pr) {
         const pr = prs.get(a.pr.number);
         if (pr) {
+          if (!a.kanbanColumn && pr.kanbanColumn) {
+            a.kanbanColumn = pr.kanbanColumn;
+          }
           pr.commits.push(a);
         } else {
           others.push(a);
@@ -195,6 +334,9 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (a.type === 'merge' && a.prNumber) {
         const pr = prs.get(a.prNumber);
         if (pr) {
+          if (!a.kanbanColumn && pr.kanbanColumn) {
+            a.kanbanColumn = pr.kanbanColumn;
+          }
           pr.merge = a;
         } else {
           others.push(a);
